@@ -98,17 +98,14 @@ export default function Calculator() {
     const inner = container.querySelector(".result-inner");
     if (!inner) return;
 
-    // Reset any previous inline sizing
     inner.style.fontSize = "";
     container.classList.remove("start-visible");
 
     const containerW = container.clientWidth;
-    // get computed font size in px
     const comp = window.getComputedStyle(inner).fontSize;
     let font = parseFloat(comp) || 40;
-    const minFont = 14; // px lower bound
+    const minFont = 14; 
 
-    // Try shrinking until it fits or hits minFont
     let iter = 0;
     while (inner.scrollWidth > containerW && font > minFont && iter < 40) {
       font = Math.max(minFont, font - 1);
@@ -116,10 +113,9 @@ export default function Calculator() {
       iter++;
     }
 
-    // If still overflowing, fallback to showing the start of the number
     if (inner.scrollWidth > containerW) {
       container.classList.add("start-visible");
-      // ensure minimum readable font
+      
       inner.style.fontSize = minFont + "px";
     } else {
       container.classList.remove("start-visible");
