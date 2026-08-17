@@ -6,9 +6,29 @@ export default function Calculator() {
   const [num, setNum] = useState("");
   const [oldNum, setOldNum] = useState("");
   const [operator, setOperator] = useState("");
+  const [lastNum, setLastNum] = useState("");
+  const [lastOperator, setLastOperator] = useState("");
+  const [justCalculated, setJustCalculated] = useState(false);
+
+  // Arredondar números decimais
+  function roundResult(valor) {
+    return parseFloat(valor.toFixed(10));
+  }
 
   // Digitar números
   function inputNum(valor) {
+
+    // Começar uma nova conta depois do "="
+    if (justCalculated) {
+      setNum(valor === "." ? "0." : valor);
+      setOldNum("");
+      setOperator("");
+      setLastNum("");
+      setLastOperator("");
+      setJustCalculated(false);
+      return;
+    }
+
     // Se clicar em "." mais de uma vez, não faz nada
     if (valor === "." && num.includes(".")) {
       return;
@@ -33,12 +53,27 @@ export default function Calculator() {
     setNum("");
     setOldNum("");
     setOperator("");
+    setLastNum("");
+    setLastOperator("");
+    setJustCalculated(false);
   }
 
   // Porcentagem
   function percentage() {
     if (num !== "") {
-      setNum((parseFloat(num) / 100).toString());
+      const currentNum = parseFloat(num);
+
+      // Se existe um número anterior e um operador
+      if (oldNum !== "" && operator !== "") {
+        const previousNum = parseFloat(oldNum);
+
+        // Calcula a porcentagem em relação ao número anterior
+        setNum((previousNum * currentNum / 100).toString());
+        return;
+      }
+
+      // Porcentagem de um número sozinho
+      setNum((currentNum / 100).toString());
     }
   }
 
@@ -51,45 +86,174 @@ export default function Calculator() {
 
   // Salvar operador
   function operatorHandler(e) {
-    setOperator(e.target.value);
-    setOldNum(num);
-    setNum("");
-  }
+    const nextOperator = e.target.value;
 
-  // Calcular
-  function calculate() {
-    const atual = parseFloat(num);
-    const anterior = parseFloat(oldNum);
+    // Começar um número negativo
+    if (num === "" && oldNum === "" && nextOperator === "-") {
+      setNum("-");
+      return;
+    }
+
+    // Trocar o operador enquanto ainda não existe número
+    if (num === "" && oldNum === "") {
+      setOperator(nextOperator);
+      return;
+    }
+
+    // Trocar operador sem realizar cálculo
+    if (num === "" && oldNum !== "") {
+      setOperator(nextOperator);
+      return;
+    }
+
+    // Evita tentar calcular apenas "-"
+    if (num === "-") {
+      return;
+    }
+
+    const currentNum = parseFloat(num);
+
+    // Primeiro número
+    if (oldNum === "") {
+      setOldNum(currentNum.toString());
+      setOperator(nextOperator);
+      setNum("");
+      return;
+    }
+
+    const previousNum = parseFloat(oldNum);
+    let result;
 
     switch (operator) {
       case "+":
-        setNum((anterior + atual).toString());
+        result = roundResult(previousNum + currentNum);
         break;
 
       case "-":
-        setNum((anterior - atual).toString());
+        result = roundResult(previousNum - currentNum);
         break;
 
       case "X":
-        setNum((anterior * atual).toString());
+        result = roundResult(previousNum * currentNum);
         break;
 
       case "/":
-        if (atual === 0) {
+        if (currentNum === 0) {
           setNum("Erro");
-        } else {
-          setNum((anterior / atual).toString());
+          setOldNum("");
+          setOperator("");
+          return;
         }
+
+        result = roundResult(previousNum / currentNum);
         break;
 
       default:
-        return;
+        result = currentNum;
     }
+
+    setOldNum(result.toString());
+    setNum("");
+    setOperator(nextOperator);
+  }
+
+  function calculate() {
+    // Repetir última operação
+    if (
+      num !== "" &&
+      oldNum === "" &&
+      operator === "" &&
+      lastNum !== "" &&
+      lastOperator !== ""
+    ) {
+      const currentNum = parseFloat(num);
+      const previousNum = parseFloat(lastNum);
+
+      let result;
+
+      switch (lastOperator) {
+        case "+":
+          result = roundResult(previousNum + currentNum);
+          break;
+
+        case "-":
+          result = roundResult(previousNum - currentNum);
+          break;
+
+        case "X":
+          result = roundResult(previousNum * currentNum);
+          break;
+
+        case "/":
+          if (currentNum === 0) {
+            setNum("Erro");
+            setOldNum("");
+            setOperator("");
+            return;
+          }
+
+          result = roundResult(previousNum / currentNum);
+          break;
+
+        default:
+          return;
+      }
+
+      setNum(result.toString());
+      setLastNum(previousNum.toString());
+      return;
+    }
+
+    if (num === "" || oldNum === "" || operator === "") {
+      return;
+    }
+
+    const previousNum = parseFloat(oldNum);
+    const currentNum = parseFloat(num);
+
+    let result;
+
+switch (operator) {
+  case "+":
+    result = roundResult(previousNum + currentNum);
+    break;
+
+  case "-":
+    result = roundResult(previousNum - currentNum);
+    break;
+
+  case "X":
+    result = roundResult(previousNum * currentNum);
+    break;
+
+  case "/":
+    if (currentNum === 0) {
+      setNum("Erro");
+      setOldNum("");
+      setOperator("");
+      setLastNum("");
+      setLastOperator("");
+      setJustCalculated(true);
+      return;
+    }
+
+    result = roundResult(previousNum / currentNum);
+    break;
+
+  default:
+    return;
+}
+
+    setNum(result.toString());
+
+    // Guarda a última informação
+    setLastNum(currentNum.toString());
+    setLastOperator(operator);
 
     setOldNum("");
     setOperator("");
+    setJustCalculated(true);
   }
-
   const resultRef = useRef(null);
 
   useEffect(() => {
@@ -97,6 +261,7 @@ export default function Calculator() {
     if (!container) return;
     const inner = container.querySelector(".result-inner");
     if (!inner) return;
+
 
     inner.style.fontSize = "";
     container.classList.remove("start-visible");
@@ -115,7 +280,6 @@ export default function Calculator() {
 
     if (inner.scrollWidth > containerW) {
       container.classList.add("start-visible");
-      
       inner.style.fontSize = minFont + "px";
     } else {
       container.classList.remove("start-visible");
